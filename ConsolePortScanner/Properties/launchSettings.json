@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsolePortScanner": {
+      "commandName": "Project",
+      "commandLineArgs": "--Link localhost"
+    }
+  }
+}
