@@ -1,7 +1,4 @@
-﻿using System.Net.Sockets;
-using System.Net;
-
-namespace ConsolePortScanner
+﻿namespace ConsolePortScanner
 {
     class Program
     {
@@ -25,5 +22,3 @@ namespace ConsolePortScanner
         }
     }
 }
-
-//--Link router.asus.com --StartPort 80 --EndPort 443

@@ -1,5 +1,5 @@
 ﻿using System.Net.Sockets;
-using System.Net;
+using System.Diagnostics;
 
 namespace ConsolePortScanner
 {
@@ -7,8 +7,7 @@ namespace ConsolePortScanner
     {
         internal static async Task Startup(Dictionary<CommandLineArgument, string?> parameters)
         {
-            int startPort, endPort = 0;
-            PortScanner scanner;
+            int startPort, endPort, totalPorts = 0;
 
             if (!parameters.ContainsKey(CommandLineArgument.Link))
             {
@@ -28,41 +27,50 @@ namespace ConsolePortScanner
 
             if (!int.TryParse(parameters[CommandLineArgument.StartPort], out startPort)
                 || !int.TryParse(parameters[CommandLineArgument.EndPort], out endPort)
-                || startPort > endPort)
+                || startPort > endPort || startPort < 1 || endPort > 65535)
             {
                 Console.WriteLine("Invalid port numbers. Scanning full diapason.");
-                startPort = endPort = 0;
+                startPort = 1;
+                endPort = totalPorts = 65535;
+            }
+            else
+            {
+                totalPorts = endPort - startPort + 1;
             }
 
-            string url = string.IsNullOrEmpty(parameters[CommandLineArgument.Link]) ? "localhost" : parameters[CommandLineArgument.Link]!;
-            IPHostEntry hostEntry = await Dns.GetHostEntryAsync(url);
+            PortScanner scanner = new PortScanner(parameters[CommandLineArgument.Link] ?? "");
 
-            if (startPort > 0 && endPort > 0)
-                scanner = new PortScanner(hostEntry, startPort, endPort);
-            else
-                scanner = new PortScanner(hostEntry);
-
-            Console.WriteLine($"Scanning ports for {url} ({hostEntry.AddressList[0]})...\n");
+            Console.WriteLine($"Scanning ports for {parameters[CommandLineArgument.Link]} ({await scanner.GetIPAddressAsync()})...\n");
 
             try
             {
                 bool findOpenPort = false;
 
-                using (var progressBar = new ProgressBar(0, scanner.TotalPorts))
-                {
-                    bool firstLine = true;
-                    await foreach (var port in scanner.FindOpenPortsAsync(progressBar))
-                    {
-                        if (firstLine)
-                        {
-                            Console.WriteLine("\n");
-                            firstLine = false;
-                        }
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
 
-                        Console.WriteLine($"Found open port: {port}");
+                using (var progressBar = new ProgressBar(0, totalPorts))
+                {
+                    Action<int> openPortCallback = (p) =>
+                    {
                         findOpenPort = true;
+                        progressBar.AddTextAfterBar($"Found open port: {p}");
+                    };
+
+                    var task = scanner.ScanPortsAsync(startPort, endPort, openPortCallback);
+                    while (true)
+                    {
+                        progressBar.Report(scanner.CheckedPorts);
+                        await Task.Delay(100);
+                        if (scanner.CheckedPorts >= totalPorts) break;
                     }
+
+                    await task;
+                    progressBar.Report(totalPorts);
                 }
+
+                stopwatch.Stop();
+                Console.WriteLine(stopwatch.ElapsedMilliseconds);
 
                 if (findOpenPort)
                     Console.WriteLine("Scanning done!");

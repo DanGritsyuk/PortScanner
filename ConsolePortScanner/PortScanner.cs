@@ -5,88 +5,51 @@ namespace ConsolePortScanner
 {
     internal class PortScanner
     {
-        private IPHostEntry _hostEntry;
-        private int _startPort;
-        private int _endPort;
+        private readonly string _host;
         private int _portsCheckedCount;
-        private Queue<Action> _progressQueue;
 
-
-        public PortScanner(IPHostEntry hostEntry) : this(hostEntry, 1, 65535) { }
-
-        public PortScanner(IPHostEntry hostEntry, int startPort, int endPort)
+        public PortScanner(string hostEntry)
         {
-            _hostEntry = hostEntry;
-            _startPort = startPort;
-            _endPort = endPort;
+            _host = hostEntry;
             _portsCheckedCount = 0;
-            _progressQueue = new Queue<Action>();
         }
 
-        public int TotalPorts { get { return _endPort - _startPort + 1; } }
+        public int CheckedPorts { get { return _portsCheckedCount; } }
 
-        public async IAsyncEnumerable<int> FindOpenPortsAsync(IProgress<int> progress)
+        public async Task ScanPortsAsync(int startPort, int endPort, Action<int> portFoundCallback)
         {
-            List<Task<int>> tasks = new List<Task<int>>();
-            List<int> openPorts = new List<int>();
+            var tasks = new List<Task>();
+            IPAddress ipAddress = await GetIPAddressAsync();
 
-            for (int port = _startPort; port <= _endPort; port++)
-            {
-                _progressQueue.Enqueue(() => progress.Report(++_portsCheckedCount));
-                tasks.Add(ScanPortAsync(_hostEntry.AddressList[0].ToString(), port, progress));
-            }
+            for (int port = startPort; port <= endPort; port++)
+                tasks.Add(ScanPortAsync(ipAddress, port, portFoundCallback));
 
             await Task.WhenAll(tasks);
-            progress.Report(TotalPorts);
-
-            _progressQueue.Clear();
-
-            foreach (var task in tasks)
-            {
-                if (task.Result != -1)
-                {
-                    yield return task.Result;
-                }
-            }
         }
 
-        private async Task<int> ScanPortAsync(string host, int port, IProgress<int> progress)
+        public async Task<IPAddress> GetIPAddressAsync()
+        {
+            string url = string.IsNullOrEmpty(_host) ? "localhost" : _host;
+            IPHostEntry hostEntry = await Dns.GetHostEntryAsync(url);
+            return hostEntry.AddressList[0];
+        }
+
+
+        private async Task ScanPortAsync(IPAddress ipAddress, int port, Action<int> portFoundCallback)
         {
             using (var client = new TcpClient())
             {
-                await ExecuteProgressQueueAsync();
+                _portsCheckedCount++;
+                await Task.Yield();
                 try
                 {
-                    await client.ConnectAsync(host, port);
-
-                    return port;
+                    await client.ConnectAsync(ipAddress, port);
+                    portFoundCallback(port);
                 }
                 catch (SocketException)
                 {
-                    return -1;
-                }
-            }
-
-
-        }
-
-        private async Task ExecuteProgressQueueAsync()
-        {
-            while (true)
-            {
-                Action? action = null;
-                lock (_progressQueue)
-                {
-                    if (_progressQueue.Count > 0)
-                        action = _progressQueue.Dequeue();
-                }
-
-                if (action != null)
-                    action.Invoke();
-                else
-                    break;
-
-                await Task.Yield();
+                    // Port is closed
+                }                
             }
         }
     }
