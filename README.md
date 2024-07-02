@@ -1,6 +1,6 @@
 # Port Scanner
 
-This is a Python program for scanning ports on a specified host. It uses asynchronous methods to perform I/O operations without blocking the main thread.
+This is a C# program for scanning ports on a specified host. It uses asynchronous methods to perform I/O operations without blocking the main thread.
 
 ## How to Use
 
