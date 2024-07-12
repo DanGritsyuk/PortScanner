@@ -1,5 +1,11 @@
 ﻿namespace ConsolePortScanner
 {
+    /// <summary>
+    /// Класс для отображения прогресса выполнения операции в виде прогресс-бара в консоли.
+    /// Class for displaying the progress of an operation as a progress bar in the console.
+    /// </summary>
+    /// <seealso cref="System.IProgress{int}" />
+    /// <seealso cref="System.IDisposable" />
     public class ProgressBar : IProgress<int>, IDisposable
     {
         private int _min;
@@ -11,7 +17,6 @@
         private bool _runProgressBar;
         private bool _isReporting;
         private string _afterText;
-
 
         public ProgressBar(int min, int max)
         {

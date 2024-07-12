@@ -3,8 +3,18 @@ using System.Diagnostics;
 
 namespace ConsolePortScanner
 {
+    /// <summary>
+    /// Класс для управления сканированием портов.
+    /// Class for controlling port scanning.
+    /// </summary>
     internal static class PortScanController
     {
+        /// <summary>
+        /// Запускает сканирование портов на основе переданных параметров командной строки.
+        /// Launches port scanning based on the passed command line parameters.
+        /// </summary>
+        /// <param name="parameters">Словарь параметров командной строки.</param>
+        /// <param name="parameters">Dictionary of command line parameters.</param>
         internal static async Task Startup(Dictionary<CommandLineArgument, string?> parameters)
         {
             int startPort, endPort, totalPorts = 0;
@@ -38,7 +48,7 @@ namespace ConsolePortScanner
                 totalPorts = endPort - startPort + 1;
             }
 
-            PortScanner scanner = new PortScanner(parameters[CommandLineArgument.Link] ?? "");
+            var scanner = new PortScanner(parameters[CommandLineArgument.Link] ?? "");
 
             Console.WriteLine($"Scanning ports for {parameters[CommandLineArgument.Link]} ({await scanner.GetIPAddressAsync()})...\n");
 
