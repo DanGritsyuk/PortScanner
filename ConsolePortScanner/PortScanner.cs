@@ -59,9 +59,29 @@ namespace ConsolePortScanner
         /// <returns>Host's IP address.</returns>
         public async Task<IPAddress> GetIPAddressAsync()
         {
-            string url = string.IsNullOrEmpty(_host) ? "localhost" : _host;
-            IPHostEntry hostEntry = await Dns.GetHostEntryAsync(url);
-            return hostEntry.AddressList[0];
+            if (string.IsNullOrEmpty(_host))
+                return IPAddress.Loopback;
+
+            if (IPAddress.TryParse(_host, out var ip))
+                return ip;
+
+            try
+            {
+                IPHostEntry hostEntry = await Dns.GetHostEntryAsync(_host);
+
+                IPAddress? resolved = hostEntry.AddressList
+                    .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                    ?? hostEntry.AddressList.FirstOrDefault();
+
+                if (resolved is null)
+                    throw new InvalidOperationException($"Для хоста '{_host}' не найдено ни одного IP-адреса.");
+
+                return resolved;
+            }
+            catch (SocketException)
+            {
+                return IPAddress.Parse(_host);
+            }
         }
 
 
